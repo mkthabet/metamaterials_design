@@ -49,7 +49,7 @@ X_train, X_test, y_train, y_test = train_test_split(values, np.column_stack((par
                                                     test_size=0.2, random_state=42)
 input_dim = X_train.shape[1]
 output_dim = y_train.shape[1]
-num_components = 3
+num_components = 5
 
 
 # define loss function
