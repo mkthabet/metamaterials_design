@@ -5,12 +5,13 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-sample = True
-sample_size = 5
+sample = False
+sample_size = 3
 
 csv_path = r"C:\Users\mktha\Documents\projects\felix\data\data.csv"
 forward_model_path = '../models/forward_model_v1.0.h5'
 inverse_model_path = '../models/mdn_v1.1.h5'
+inverse_model_vanilla_path = '../models/best_model.h5'
 
 df = pd.read_csv(csv_path)
 
@@ -114,70 +115,73 @@ mean_relative_modal_variance = np.mean(relative_modal_variance, axis=0)
 print(f'mean modal variance: param1: {mean_modal_variance[0]}, param2: {mean_modal_variance[1]}, param3: {mean_modal_variance[2]}')
 print(f'mean relative modal variance: param1: {mean_relative_modal_variance[0]}, param2: {mean_relative_modal_variance[1]}, param3: {mean_relative_modal_variance[2]}')
 
+inverse_model_vanilla = tf.keras.models.load_model(inverse_model_vanilla_path)
+preds_vanilla = inverse_model_vanilla.predict(X_test)
+
 rng = np.random.default_rng()
 response_gt = values_scaler.inverse_transform(X_test)
+response_preds_vanilla = forward_model.predict(preds_vanilla)
+# inverse transform preds
+preds_vanilla_param1 = preds_vanilla[:, 0]
+preds_vanilla_param2 = preds_vanilla[:, 1]
+preds_vanilla_param3 = preds_vanilla[:, 2]
+preds_vanilla_param1 = param1_scaler.inverse_transform(preds_vanilla_param1.reshape(-1, 1))
+preds_vanilla_param2 = param2_scaler.inverse_transform(preds_vanilla_param2.reshape(-1, 1))
+preds_vanilla_param3 = param3_scaler.inverse_transform(preds_vanilla_param3.reshape(-1, 1))
+response_preds_vanilla = values_scaler.inverse_transform(response_preds_vanilla)
 # unstack parameters in y_test
 param1_gt = param1_scaler.inverse_transform(y_test[:, 0].reshape(-1, 1))
 param2_gt = param2_scaler.inverse_transform(y_test[:, 1].reshape(-1, 1))
 param3_gt = param3_scaler.inverse_transform(y_test[:, 2].reshape(-1, 1))
-if sample:
-    for i in range(preds.shape[0]):
-        #sample from the mixture
+for i in range(preds.shape[0]):
+    if sample:
+        # sample from the mixture
         idx = rng.choice(num_components, size=sample_size, p=pis[i])
         mu = mus_transformed[i, idx, :]
         sigma = sigmas_transformed[i, idx, :]
         sample_pred = np.random.normal(loc=mu, scale=sigma)
-        response_pred = forward_model.predict(sample_pred)
-        # unstack params
-        param1_pred = sample_pred[:, 0]
-        param2_pred = sample_pred[:, 1]
-        param3_pred = sample_pred[:, 2]
-        # unstandardize
-        response_pred = values_scaler.inverse_transform(response_pred)
-        param1_pred = param1_scaler.inverse_transform(param1_pred.reshape(-1, 1))
-        param2_pred = param2_scaler.inverse_transform(param2_pred.reshape(-1, 1))
-        param3_pred = param3_scaler.inverse_transform(param3_pred.reshape(-1, 1))
-        param1_pred = param1_pred.reshape(-1, 1)
-        param2_pred = param2_pred.reshape(-1, 1)
-        param3_pred = param3_pred.reshape(-1, 1)
-        param1_gt_str = f'p1: {param1_gt[i, 0]:.2f}'
-        param2_gt_str = f'p2: {param2_gt[i, 0]:.2f}'
-        param3_gt_str = f'p3: {param3_gt[i, 0]:.2f}'
-        print(f'modal mean: {mdn_mean[i, :]}, modal variance: {modal_variance[i, :]}, relative modal variance: {relative_modal_variance[i, :]}')
-        plt.plot(response_gt[i], label=f'input response at {param1_gt_str}, {param2_gt_str}, {param3_gt_str}')
-
-        for sample_num in range(sample_size):
-            param1_str = f'p1: {param1_pred[sample_num][0]:.2f}'
-            param2_str = f'p2: {param2_pred[sample_num][0]:.2f}'
-            param3_str = f'p3: {param3_pred[sample_num][0]:.2f}'
-            plt.plot(response_pred[sample_num],
-                     label=f'pred response for {param1_str}, {param2_str}, {param3_str}', linestyle='--')
-
-        plt.title('Predicted response for samples of predicted parameters')
-        plt.legend()
-        plt.show()
-else:
-    # get best component
-    params_pred = np.zeros((y_test.shape[0], num_params))
-    best_component = np.argmax(pis, axis=-1)
-    for i in range(len(best_component)):
-        params_pred[i] = mus[i][best_component[i]]
-
-    response_pred = forward_model.predict(params_pred)
-    #unstack params
-    param1_pred = params_pred[:, 0]
-    param2_pred = params_pred[:, 1]
-    param3_pred = params_pred[:, 2]
+    else:
+        sample_pred = mus_transformed[i, :, :]
+        # arrange sample pred in descending according to pis[i]
+        idx = np.argsort(pis[i])[::-1]
+        sample_pred = sample_pred[idx, :]
+        pis[i] = pis[i][idx]
+        sample_size = min(sample_size, num_components)
+    response_pred = forward_model.predict(sample_pred)
+    # unstack params
+    param1_pred = sample_pred[:, 0]
+    param2_pred = sample_pred[:, 1]
+    param3_pred = sample_pred[:, 2]
     # unstandardize
     response_pred = values_scaler.inverse_transform(response_pred)
-    response_gt = values_scaler.inverse_transform(X_test)
     param1_pred = param1_scaler.inverse_transform(param1_pred.reshape(-1, 1))
     param2_pred = param2_scaler.inverse_transform(param2_pred.reshape(-1, 1))
     param3_pred = param3_scaler.inverse_transform(param3_pred.reshape(-1, 1))
-    for i in range(len(response_pred)):
-        # plot response
-        plt.plot(response_pred[i], label='inverse model')
-        plt.plot(response_gt[i], label='forward model')
-        plt.legend()
-        plt.title(f'param1: {param1_pred[i]}, param2: {param2_pred[i]}, param3: {param3_pred[i]}')
-        plt.show()
+    param1_pred = param1_pred.reshape(-1, 1)
+    param2_pred = param2_pred.reshape(-1, 1)
+    param3_pred = param3_pred.reshape(-1, 1)
+    param1_gt_str = f'p1: {param1_gt[i, 0]:.2f}'
+    param2_gt_str = f'p2: {param2_gt[i, 0]:.2f}'
+    param3_gt_str = f'p3: {param3_gt[i, 0]:.2f}'
+    print(f'modal mean: {mdn_mean[i, :]}, modal variance: {modal_variance[i, :]},'
+          f' relative modal variance: {relative_modal_variance[i, :]}')
+    plt.plot(response_gt[i], label=f'input response at {param1_gt_str}, {param2_gt_str}, {param3_gt_str}')
+
+    for sample_num in range(sample_size):
+        param1_str = f'p1: {param1_pred[sample_num][0]:.2f}'
+        param2_str = f'p2: {param2_pred[sample_num][0]:.2f}'
+        param3_str = f'p3: {param3_pred[sample_num][0]:.2f}'
+        pi_str = f'pi: {pis[i, sample_num]:.2f}'
+        label_str = f'pred response for {param1_str}, {param2_str}, {param3_str}'
+        if not sample:
+            label_str = label_str + f', {pi_str}'
+        plt.plot(response_pred[sample_num],
+                 label=label_str, linestyle='--')
+    vanilla_param1_str = f'p1: {preds_vanilla_param1[i][0]:.2f}'
+    vanilla_param2_str = f'p2: {preds_vanilla_param2[i][0]:.2f}'
+    vanilla_param3_str = f'p3: {preds_vanilla_param3[i][0]:.2f}'
+    vanilla_label_str = f'vanilla pred response for {vanilla_param1_str}, {vanilla_param2_str}, {vanilla_param3_str}'
+    plt.plot(response_preds_vanilla[i], label=vanilla_label_str, linestyle=':')
+    plt.title('Predicted response for samples of predicted parameters')
+    plt.legend()
+    plt.show()
