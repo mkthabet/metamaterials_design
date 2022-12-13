@@ -73,25 +73,6 @@ def train_FCN(hidden_layers, hidden_dim, dropout_rate):
     model.fit(X_train, y_train, epochs=200, batch_size=8, validation_data=(X_test, y_test),
               callbacks=[lr_callback, cp_callback, es_callback])
 
-def train_MDN(hidden_layers, hidden_dim, dropout_rate):
-    input_layer = tf.keras.Input(shape=(input_dim,))
-    x = layers.Dense(hidden_dim, activation='relu')(input_layer)
-    x = layers.LayerNormalization()(x)
-    x = layers.Dropout(dropout_rate)(x)
-    for layer in range(hidden_layers - 1):
-        residual = x
-        x = layers.Dense(hidden_dim, activation='relu')(x)
-        x = layers.Add()([x, residual])
-        x = layers.LayerNormalization()(x)
-        x = layers.Dropout(dropout_rate)(x)
-    mu_output = layers.Dense(output_dim)(x)
-    sigma_output = layers.Dense(output_dim, activation='softplus')(x)
-    pi_output = layers.Dense(output_dim, activation='softmax')(x)
-    model = tf.keras.Model(inputs=input_layer, outputs=[mu_output, sigma_output, pi_output])
-    # define loss function
-
-
-
 train_FCN(hidden_layers=5, hidden_dim=2048, dropout_rate=0.0)
 # predict
 model = tf.keras.models.load_model('../models/best_model.h5')
