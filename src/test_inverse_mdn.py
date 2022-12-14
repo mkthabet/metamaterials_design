@@ -5,8 +5,8 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-sample = False
-sample_size = 3
+sample = True
+sample_size = 5
 
 csv_path = r"C:\Users\mktha\Documents\projects\felix\data\data.csv"
 forward_model_path = '../models/forward_model_v1.0.h5'
@@ -140,13 +140,22 @@ for i in range(preds.shape[0]):
         mu = mus_transformed[i, idx, :]
         sigma = sigmas_transformed[i, idx, :]
         sample_pred = np.random.normal(loc=mu, scale=sigma)
+        pis_filtered = pis[i, idx]
     else:
         sample_pred = mus_transformed[i, :, :]
         # arrange sample pred in descending according to pis[i]
         idx = np.argsort(pis[i])[::-1]
         sample_pred = sample_pred[idx, :]
         pis[i] = pis[i][idx]
-        sample_size = min(sample_size, num_components)
+        # filter out values of pis below 0.1
+        idx = pis[i] > 0.05
+        sample_pred = sample_pred[idx, :]
+        pis_filtered = pis[i][idx]
+        sample_size = len(pis_filtered)
+    # inverse transform zero
+    transformed_zero = param1_scaler.transform(np.zeros((1, 1)))
+    # clip sample_pred to zero on param1
+    sample_pred[:, 0] = np.clip(sample_pred[:, 0], transformed_zero, np.inf)
     response_pred = forward_model.predict(sample_pred)
     # unstack params
     param1_pred = sample_pred[:, 0]
@@ -160,6 +169,10 @@ for i in range(preds.shape[0]):
     param1_pred = param1_pred.reshape(-1, 1)
     param2_pred = param2_pred.reshape(-1, 1)
     param3_pred = param3_pred.reshape(-1, 1)
+    # make sure that the predicted parameters are non-negative by clipping
+    # param1_pred = np.clip(param1_pred, 0, None)
+    # param2_pred = np.clip(param2_pred, 0, None)
+    # param3_pred = np.clip(param3_pred, 0, None)
     param1_gt_str = f'p1: {param1_gt[i, 0]:.2f}'
     param2_gt_str = f'p2: {param2_gt[i, 0]:.2f}'
     param3_gt_str = f'p3: {param3_gt[i, 0]:.2f}'
@@ -171,7 +184,7 @@ for i in range(preds.shape[0]):
         param1_str = f'p1: {param1_pred[sample_num][0]:.2f}'
         param2_str = f'p2: {param2_pred[sample_num][0]:.2f}'
         param3_str = f'p3: {param3_pred[sample_num][0]:.2f}'
-        pi_str = f'pi: {pis[i, sample_num]:.2f}'
+        pi_str = f'pi: {pis_filtered[sample_num]:.2f}' if sample else ''
         label_str = f'pred response for {param1_str}, {param2_str}, {param3_str}'
         if not sample:
             label_str = label_str + f', {pi_str}'
@@ -181,7 +194,7 @@ for i in range(preds.shape[0]):
     vanilla_param2_str = f'p2: {preds_vanilla_param2[i][0]:.2f}'
     vanilla_param3_str = f'p3: {preds_vanilla_param3[i][0]:.2f}'
     vanilla_label_str = f'vanilla pred response for {vanilla_param1_str}, {vanilla_param2_str}, {vanilla_param3_str}'
-    plt.plot(response_preds_vanilla[i], label=vanilla_label_str, linestyle=':')
+    plt.plot(response_preds_vanilla[i], label=vanilla_label_str, linestyle=':', color='black')
     plt.title('Predicted response for samples of predicted parameters')
     plt.legend()
     plt.show()
