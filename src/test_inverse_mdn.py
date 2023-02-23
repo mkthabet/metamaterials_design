@@ -5,11 +5,11 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-sample = True
+sample = False
 sample_size = 5
 
 csv_path = r"C:\Users\mktha\Documents\projects\felix\data\data.csv"
-forward_model_path = '../models/forward_model_v1.0.h5'
+forward_model_path = '../models/best_model.h5'
 inverse_model_path = '../models/mdn_v1.1.h5'
 inverse_model_vanilla_path = '../models/best_model.h5'
 
@@ -169,10 +169,7 @@ for i in range(preds.shape[0]):
     param1_pred = param1_pred.reshape(-1, 1)
     param2_pred = param2_pred.reshape(-1, 1)
     param3_pred = param3_pred.reshape(-1, 1)
-    # make sure that the predicted parameters are non-negative by clipping
-    # param1_pred = np.clip(param1_pred, 0, None)
-    # param2_pred = np.clip(param2_pred, 0, None)
-    # param3_pred = np.clip(param3_pred, 0, None)
+
     param1_gt_str = f'p1: {param1_gt[i, 0]:.2f}'
     param2_gt_str = f'p2: {param2_gt[i, 0]:.2f}'
     param3_gt_str = f'p3: {param3_gt[i, 0]:.2f}'
@@ -184,7 +181,7 @@ for i in range(preds.shape[0]):
         param1_str = f'p1: {param1_pred[sample_num][0]:.2f}'
         param2_str = f'p2: {param2_pred[sample_num][0]:.2f}'
         param3_str = f'p3: {param3_pred[sample_num][0]:.2f}'
-        pi_str = f'pi: {pis_filtered[sample_num]:.2f}' if sample else ''
+        pi_str = f'pi: {pis_filtered[sample_num]:.2f}' if not sample else ''
         label_str = f'pred response for {param1_str}, {param2_str}, {param3_str}'
         if not sample:
             label_str = label_str + f', {pi_str}'

@@ -88,16 +88,17 @@ def train_MDN(hidden_layers, hidden_dim, dropout_rate, num_components):
     output = layers.Concatenate(axis=-1, name='output')([mu_output, sigma_output, pi_output])
     model = tf.keras.Model(inputs=input_layer, outputs=output)
 
-    model.compile(optimizer='adam', loss=mdn_loss)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=0.0005)
+    model.compile(optimizer=optimizer, loss=mdn_loss)
     model.summary()
     lr_callback = tf.keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, min_lr=0.00001, verbose=1)
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath='../models/mdn_cp.h5', monitor='val_loss',
                                                      save_best_only=True, verbose=1)
     es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30, verbose=1)
-    model.fit(X_train, y_train, epochs=200, batch_size=8, validation_data=(X_test, y_test),
+    model.fit(X_train, y_train, epochs=300, batch_size=8, validation_data=(X_test, y_test),
               callbacks=[lr_callback, cp_callback, es_callback])
 
-train_MDN(hidden_layers=5, hidden_dim=2048, dropout_rate=0.2, num_components=num_components)
+train_MDN(hidden_layers=5, hidden_dim=1024, dropout_rate=0.2, num_components=num_components)
 # predict
 model = tf.keras.models.load_model('../models/mdn_cp.h5')
 preds = model.predict(X_test)
@@ -112,6 +113,11 @@ y_pred = np.zeros((y_test.shape[0], output_dim))
 best_component = np.argmax(pis, axis=-1)
 for i in range(len(best_component)):
     y_pred[i] = mus[i][best_component[i]]
+# for i, y in enumerate(y_test):
+#     # find the component that minimizes the distance to the true value
+#     dist = np.linalg.norm(mus[i] - y, axis=-1)
+#     best_component = np.argmin(dist)
+#     y_pred[i] = mus[i][best_component]
 
 # unstack Y_test and Y_pred
 y_test_param1 = y_test[:, 0]
