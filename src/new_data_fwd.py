@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn import preprocessing
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
+from keras import layers
 from sklearn.model_selection import train_test_split
 import wandb
 import scipy.io
@@ -15,11 +15,11 @@ sweep_configuration = {
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
     {
-        'batch_size': {'values': [256, 512, 1024]},
+        'batch_size': {'values': [512, 1024, 2048]},
         'lr_start': {'max': 0.0001, 'min': 0.00001},
         'lr_max': {'max': 0.01, 'min': 0.005},
-        'warmup_steps': {'values': [1000, 2000, 3000]},
-        'hidden_dim': {'values': [256, 512, 1024]},
+        'warmup_steps': {'values': [500, 1000, 1500]},
+        'hidden_dim': {'values': [512, 1024, 2048]},
         # 'dropout': {'values': [0.0, 0.1, 0.2, 0.3]},
         'num_layers': {'values': [20, 25, 30]},
         # constants
@@ -30,71 +30,43 @@ sweep_configuration = {
 
 # setup config
 default_config = {
-    'lr_start': 0.00001,
+    'lr_start': 0.00008,
     'lr_max': 0.005,
-    'batch_size': 512,
+    'batch_size': 1024,
     'warmup_steps': 1000,
     'epochs': 500,
     'hidden_dim': 512,
     'dropout': 0.0,
-    'num_layers': 25,
+    'num_layers': 20,
 }
 
 
 def main(run_config=None):
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\RawDataMagExtended(newdataset).csv"
-
-    df_mag = pd.read_csv(csv_path, header=0, index_col=0)
-
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag30000.csv"
-
+    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended300000mag.csv"
+    df_mag_1 = pd.read_csv(csv_path, header=0, index_col=0)
+    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended350000mag.csv"
     df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
+    df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
 
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag100000.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended300000ph.csv"
+    df_phase_1 = pd.read_csv(csv_path, header=0, index_col=0)
+    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended350000ph.csv"
+    df_phase_2 = pd.read_csv(csv_path, header=0, index_col=0)
+    df_phase = pd.concat([df_phase_1, df_phase_2], axis=0)
 
-    df_mag_3 = pd.read_csv(csv_path, header=0, index_col=0)
-
-    # concat the two dataframes
-    df_mag = pd.concat([df_mag, df_mag_2, df_mag_3], axis=0)
-
-    # get the headers
-    headers = df_mag.columns.values.tolist()
-
-    ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
-
-    f = scipy.io.loadmat(ds_path)
-    df = pd.DataFrame(f['extended500000mag'])
-    # drop the first column
-    df = df.drop([0], axis=1)
-    # rename the columns
-    df.columns = headers
-    # concat the two dataframes vertically
-    df_mag = pd.concat([df_mag, df], axis=0)
-
-
-    df1 = df_mag
-    param1 = df1['eps1 ']
-    param2 = df1['eps2 ']
-    param3 = df1['eps3 ']
-    param4 = df1['eps4 ']
-    param5 = df1['t1 [mm]']
-    param6 = df1['t2 [mm]']
-    param7 = df1['t3 [mm]']
-    param8 = df1['t4 [mm]']
+    param1 = df_mag['eps1 '].values
+    param2 = df_mag['eps2 '].values
+    param3 = df_mag['eps3 '].values
+    param4 = df_mag['eps4 '].values
+    param5 = df_mag['t1 [mm]'].values
+    param6 = df_mag['t2 [mm]'].values
+    param7 = df_mag['t3 [mm]'].values
+    param8 = df_mag['t4 [mm]'].values
     # get the columns from 9 to the end
-    values = df1.iloc[:, 8:]
-
-    # convert to numpy array
-    param1 = param1.values
-    param2 = param2.values
-    param3 = param3.values
-    param4 = param4.values
-    param5 = param5.values
-    param6 = param6.values
-    param7 = param7.values
-    param8 = param8.values
-    values = values.to_numpy()
-    # values = values[:, 50:51]
+    mag_values = df_mag.iloc[:, 8:].values
+    phase_values = df_phase.iloc[:, 8:].values
+    real_values = mag_values * np.cos(np.deg2rad(phase_values))
+    imag_values = mag_values * np.sin(np.deg2rad(phase_values))
 
     # standardize
     param1_scaler = preprocessing.StandardScaler()
@@ -113,12 +85,17 @@ def main(run_config=None):
     param7 = param7_scaler.fit_transform(param7.reshape(-1, 1))
     param8_scaler = preprocessing.StandardScaler()
     param8 = param8_scaler.fit_transform(param8.reshape(-1, 1))
-    values_scaler = preprocessing.StandardScaler()
-    values = values_scaler.fit_transform(values)
+    real_scaler = preprocessing.StandardScaler()
+    real_values = real_scaler.fit_transform(real_values)
+    imag_scaler = preprocessing.StandardScaler()
+    imag_values = imag_scaler.fit_transform(imag_values)
+
+    # concat real and imag
+    values = np.column_stack((real_values, imag_values))
 
     inputs = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
     # split data
-    X_train, X_test, y_train, y_test = train_test_split(inputs, values, test_size=0.05, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(inputs, values, test_size=0.2, random_state=42)
 
 
 
@@ -126,7 +103,7 @@ def main(run_config=None):
     # root_path = Path(r'C:\Users\mktha\Documents\projects\felix')
 
     # model_dir = root_path / 'models'
-    wandb.init(project='felix')
+    wandb.init(project='metamaterials_toy_mdn')
     # get run name
     run_name = wandb.run.name
     # get run dir
@@ -166,33 +143,41 @@ def main(run_config=None):
     optimizer = tf.keras.optimizers.Adam(learning_rate=schedule)
     model.compile(optimizer=optimizer, loss='mse', metrics=['mae'])
     model.summary()
-    lr_callback = tf.keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, min_lr=0.00001, verbose=1)
+    # lr_callback = tf.keras.callbacks.ReduceLROnPlateau(monitor='loss', factor=0.5, patience=5, min_lr=0.00001, verbose=1)
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=f'../models/cp_{run_name}.h5', monitor='val_loss',
                                                      save_best_only=True, verbose=1)
     es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30, verbose=1)
     wandb_callback = wandb.keras.WandbCallback(monitor="val_loss",
                                                        log_weights=True, save_model=False)
     model.fit(X_train, y_train, epochs=config['epochs'], batch_size=config['batch_size'], validation_data=(X_test, y_test),
-              callbacks=[lr_callback, cp_callback, es_callback, wandb_callback])
+              callbacks=[cp_callback, es_callback, wandb_callback])
 
 
     # # predict
-    # model = tf.keras.models.load_model('../models/best_model.h5')
-    # y_pred = model.predict(X_test)
-    # y_pred = values_scaler.inverse_transform(y_pred)
-    # y_test = values_scaler.inverse_transform(y_test)
-    #
-    #
-    # # calculate abs error along axis 1
-    # error_abs = np.abs(y_pred - y_test)
-    # square_error = np.square(y_pred - y_test)
-    # mse = np.mean(np.square(error_abs))
-    # mae = np.mean(error_abs)
-    # print("MSE: ", mse)
-    # print("MAE: ", mae)
+    model = tf.keras.models.load_model('../models/best_model.h5')
+    y_pred = model.predict(X_test)
+    # split real and imag
+    y_pred = np.split(y_pred, 2, axis=1)
+    real_pred = y_pred[0]
+    imag_pred = y_pred[1]
+
+    # inverse standardize
+    real_pred = real_scaler.inverse_transform(real_pred)
+    imag_pred = imag_scaler.inverse_transform(imag_pred)
+    y_pred = np.column_stack((real_pred, imag_pred))
+    
+    
+    # calculate abs error along axis 1
+    error_abs = np.abs(y_pred - y_test)
+    square_error = np.square(y_pred - y_test)
+    mse = np.mean(np.square(error_abs))
+    mae = np.mean(error_abs)
+    print("MSE: ", mse)
+    print("MAE: ", mae)
+    wandb.log({'mse': mse, 'mae': mae})
 
 # Initialize sweep by passing in config. (Optional) Provide a name of the project.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project='felix')
-wandb.agent(sweep_id, main, count=20)
-# main(default_config)
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project='metamaterials_toy_mdn')
+# wandb.agent(sweep_id, main, count=20)
+main(default_config)
 
