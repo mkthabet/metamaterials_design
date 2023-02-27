@@ -2,10 +2,9 @@ import pandas as pd
 from sklearn import preprocessing
 import numpy as np
 import tensorflow as tf
-from keras import layers
+from tensorflow.keras import layers
 from sklearn.model_selection import train_test_split
 import wandb
-import scipy.io
 from lib.schedulers import WarmUpCosine
 
 # Define sweep config
@@ -20,11 +19,11 @@ sweep_configuration = {
         'lr_max': {'max': 0.01, 'min': 0.005},
         'warmup_steps': {'values': [500, 1000, 1500]},
         'hidden_dim': {'values': [512, 1024, 2048]},
-        # 'dropout': {'values': [0.0, 0.1, 0.2, 0.3]},
+        'dropout': {'values': [0.0, 0.1, 0.2]},
         'num_layers': {'values': [20, 25, 30]},
         # constants
         'epochs': {'value': 500},
-        'dropout': {'value': 0.0},
+        # 'dropout': {'value': 0.0},
      }
 }
 
@@ -42,15 +41,15 @@ default_config = {
 
 
 def main(run_config=None):
-    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended300000mag.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended300000mag.csv"
     df_mag_1 = pd.read_csv(csv_path, header=0, index_col=0)
-    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended350000mag.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
     df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
     df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
 
-    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended300000ph.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended300000ph.csv"
     df_phase_1 = pd.read_csv(csv_path, header=0, index_col=0)
-    csv_path = r"C:\Users\mktha\Documents\projects\metamaterials_design\data\extended350000ph.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000ph.csv"
     df_phase_2 = pd.read_csv(csv_path, header=0, index_col=0)
     df_phase = pd.concat([df_phase_1, df_phase_2], axis=0)
 
@@ -154,7 +153,7 @@ def main(run_config=None):
 
 
     # # predict
-    model = tf.keras.models.load_model('../models/best_model.h5')
+    model = tf.keras.models.load_model('../models/cp_{run_name}.h5')
     y_pred = model.predict(X_test)
     # split real and imag
     y_pred = np.split(y_pred, 2, axis=1)
@@ -177,7 +176,7 @@ def main(run_config=None):
     wandb.log({'mse': mse, 'mae': mae})
 
 # Initialize sweep by passing in config. (Optional) Provide a name of the project.
-# sweep_id = wandb.sweep(sweep=sweep_configuration, project='metamaterials_toy_mdn')
-# wandb.agent(sweep_id, main, count=20)
-main(default_config)
+sweep_id = wandb.sweep(sweep=sweep_configuration, project='metamaterials_toy_mdn')
+wandb.agent(sweep_id, main, count=20)
+# main(default_config)
 

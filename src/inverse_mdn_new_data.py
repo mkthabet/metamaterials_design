@@ -45,71 +45,62 @@ default_config = {
 
 
 def train_MDN(run_config=None):
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\RawDataMagExtended(newdataset).csv"
-
-    df_mag = pd.read_csv(csv_path, header=0, index_col=0)
-
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag30000.csv"
-
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended300000mag.csv"
+    df_mag_1 = pd.read_csv(csv_path, header=0, index_col=0)
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
     df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
+    df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
 
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag100000.csv"
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended300000ph.csv"
+    df_phase_1 = pd.read_csv(csv_path, header=0, index_col=0)
+    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000ph.csv"
+    df_phase_2 = pd.read_csv(csv_path, header=0, index_col=0)
+    df_phase = pd.concat([df_phase_1, df_phase_2], axis=0)
 
-    df_mag_3 = pd.read_csv(csv_path, header=0, index_col=0)
-
-    # concat the two dataframes
-    df_mag = pd.concat([df_mag, df_mag_2, df_mag_3], axis=0)
-
-    # get the headers
-    headers = df_mag.columns.values.tolist()
-
-    ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
-
-    f = scipy.io.loadmat(ds_path)
-    df = pd.DataFrame(f['extended500000mag'])
-    # drop the first column
-    df = df.drop([0], axis=1)
-    # rename the columns
-    df.columns = headers
-    # concat the two dataframes vertically
-    df_mag = pd.concat([df_mag, df], axis=0)
-
-    df1 = df_mag
-
-    param1 = df1['eps1 ']
-    param2 = df1['eps2 ']
-    param3 = df1['eps3 ']
-    param4 = df1['eps4 ']
-    param5 = df1['t1 [mm]']
-    param6 = df1['t2 [mm]']
-    param7 = df1['t3 [mm]']
-    param8 = df1['t4 [mm]']
+    param1 = df_mag['eps1 '].values
+    param2 = df_mag['eps2 '].values
+    param3 = df_mag['eps3 '].values
+    param4 = df_mag['eps4 '].values
+    param5 = df_mag['t1 [mm]'].values
+    param6 = df_mag['t2 [mm]'].values
+    param7 = df_mag['t3 [mm]'].values
+    param8 = df_mag['t4 [mm]'].values
     # get the columns from 9 to the end
-    values = df1.iloc[:, 8:]
-
-    # convert to numpy array
-    param1 = param1.values
-    param2 = param2.values
-    param3 = param3.values
-    param4 = param4.values
-    param5 = param5.values
-    param6 = param6.values
-    param7 = param7.values
-    param8 = param8.values
-    values = values.to_numpy()
-
-    params = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
+    mag_values = df_mag.iloc[:, 8:].values
+    phase_values = df_phase.iloc[:, 8:].values
+    real_values = mag_values * np.cos(np.deg2rad(phase_values))
+    imag_values = mag_values * np.sin(np.deg2rad(phase_values))
 
     # standardize
-    params_scaler = preprocessing.StandardScaler()
-    params = params_scaler.fit_transform(params)
-    values_scaler = preprocessing.StandardScaler()
-    values = values_scaler.fit_transform(values)
+    param1_scaler = preprocessing.StandardScaler()
+    param1 = param1_scaler.fit_transform(param1.reshape(-1, 1))
+    param2_scaler = preprocessing.StandardScaler()
+    param2 = param2_scaler.fit_transform(param2.reshape(-1, 1))
+    param3_scaler = preprocessing.StandardScaler()
+    param3 = param3_scaler.fit_transform(param3.reshape(-1, 1))
+    param4_scaler = preprocessing.StandardScaler()
+    param4 = param4_scaler.fit_transform(param4.reshape(-1, 1))
+    param5_scaler = preprocessing.StandardScaler()
+    param5 = param5_scaler.fit_transform(param5.reshape(-1, 1))
+    param6_scaler = preprocessing.StandardScaler()
+    param6 = param6_scaler.fit_transform(param6.reshape(-1, 1))
+    param7_scaler = preprocessing.StandardScaler()
+    param7 = param7_scaler.fit_transform(param7.reshape(-1, 1))
+    param8_scaler = preprocessing.StandardScaler()
+    param8 = param8_scaler.fit_transform(param8.reshape(-1, 1))
+    real_scaler = preprocessing.StandardScaler()
+    real_values = real_scaler.fit_transform(real_values)
+    imag_scaler = preprocessing.StandardScaler()
+    imag_values = imag_scaler.fit_transform(imag_values)
+
+    params = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
+    # concat real and imag
+    values = np.column_stack((real_values, imag_values))
 
     # split data
     X_train, X_test, y_train, y_test = train_test_split(values, params,
                                                         test_size=0.2, random_state=42)
-    wandb.init(project='felix_inverse_mdn')
+    wandb.init(project='felix_inverse_mdn_new')
     # get run name
     run_name = wandb.run.name
     # get run dir
@@ -160,48 +151,48 @@ def train_MDN(run_config=None):
               validation_data=(X_test, y_test),
               callbacks=[lr_callback, cp_callback, es_callback, wandb_callback, lr_logger_callback])
 
-    model = tf.keras.models.load_model(f'../models/cp_{run_name}.h5',
-                                       custom_objects={'mdn_loss': get_mdn_loss(output_dim, num_components),
-                                                       'WarmUpCosine': WarmUpCosine})
-    preds = model.predict(X_test)
-    mus = preds[:, :output_dim * num_components]
-    sigmas = preds[:, output_dim * num_components:2 * output_dim * num_components]
-    pis = preds[:, 2 * output_dim * num_components:]
-    mus = np.reshape(mus, [-1, num_components, output_dim])
-    sigmas = np.reshape(sigmas, [-1, num_components, output_dim])
-    pis = np.reshape(pis, [-1, num_components])
-    # get best component
-    y_pred = np.zeros((y_test.shape[0], output_dim))
-    best_component = np.argmax(pis, axis=-1)
-    # for i in range(len(best_component)):
-    #     y_pred[i] = mus[i][best_component[i]]
-    for i, y in enumerate(y_test):
-        # find the component that minimizes the distance to the true value
-        dist = np.linalg.norm(mus[i] - y, axis=-1)
-        best_component = np.argmin(dist)
-        y_pred[i] = mus[i][best_component]
+    # model = tf.keras.models.load_model(f'../models/cp_{run_name}.h5',
+    #                                    custom_objects={'mdn_loss': get_mdn_loss(output_dim, num_components),
+    #                                                    'WarmUpCosine': WarmUpCosine})
+    # preds = model.predict(X_test)
+    # mus = preds[:, :output_dim * num_components]
+    # sigmas = preds[:, output_dim * num_components:2 * output_dim * num_components]
+    # pis = preds[:, 2 * output_dim * num_components:]
+    # mus = np.reshape(mus, [-1, num_components, output_dim])
+    # sigmas = np.reshape(sigmas, [-1, num_components, output_dim])
+    # pis = np.reshape(pis, [-1, num_components])
+    # # get best component
+    # y_pred = np.zeros((y_test.shape[0], output_dim))
+    # best_component = np.argmax(pis, axis=-1)
+    # # for i in range(len(best_component)):
+    # #     y_pred[i] = mus[i][best_component[i]]
+    # for i, y in enumerate(y_test):
+    #     # find the component that minimizes the distance to the true value
+    #     dist = np.linalg.norm(mus[i] - y, axis=-1)
+    #     best_component = np.argmin(dist)
+    #     y_pred[i] = mus[i][best_component]
 
-    # unstandardize
-    params_pred = params_scaler.inverse_transform(y_pred)
-    params_test = params_scaler.inverse_transform(y_test)
+    # # unstandardize
+    # params_pred = params_scaler.inverse_transform(y_pred)
+    # params_test = params_scaler.inverse_transform(y_test)
 
-    # calculate abs error for each parameter
-    params_abs_error = np.abs(params_pred - params_test)
-    # calculate mean abs error for each parameter
-    params_mae = np.mean(params_abs_error, axis=0)
-    # calulate mse for each parameter
-    params_mse = np.mean(np.square(params_pred - params_test), axis=0)
-    # clauculate percentage error for each parameter
-    params_percentage_error = np.mean(np.abs(params_pred - params_test) / params_test, axis=0) * 100
-    # print results
-    print('MAE: ', params_mae)
-    print('MSE: ', params_mse)
-    print('Percentage Error: ', params_percentage_error)
-    # log results
-    wandb.log({'MAE': params_mae.mean(), 'MSE': params_mse.mean(), 'Percentage Error': params_percentage_error.mean()})
+    # # calculate abs error for each parameter
+    # params_abs_error = np.abs(params_pred - params_test)
+    # # calculate mean abs error for each parameter
+    # params_mae = np.mean(params_abs_error, axis=0)
+    # # calulate mse for each parameter
+    # params_mse = np.mean(np.square(params_pred - params_test), axis=0)
+    # # clauculate percentage error for each parameter
+    # params_percentage_error = np.mean(np.abs(params_pred - params_test) / params_test, axis=0) * 100
+    # # print results
+    # print('MAE: ', params_mae)
+    # print('MSE: ', params_mse)
+    # print('Percentage Error: ', params_percentage_error)
+    # # log results
+    # wandb.log({'MAE': params_mae.mean(), 'MSE': params_mse.mean(), 'Percentage Error': params_percentage_error.mean()})
 
 if __name__ == '__main__':
-    sweep_id = wandb.sweep(sweep=sweep_configuration, project='felix_inverse_mdn')
+    sweep_id = wandb.sweep(sweep=sweep_configuration, project='felix_inverse_mdn_new')
     wandb.agent(sweep_id, train_MDN, count=30)
     # train_MDN(default_config)
 
