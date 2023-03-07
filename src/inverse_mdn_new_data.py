@@ -12,20 +12,20 @@ from lib.callbacks import LRLogger
 
 sweep_configuration = {
     'method': 'bayes',
-    'name': 'sweep',
+    'name': '',
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
     {
-        'batch_size': {'values': [1024, 2048, 4096]},
+        'batch_size': {'values': [2048, 4096, 8192]},
         'lr_start': {'max': 0.000001, 'min': 0.0000001},
-        'lr_max': {'max': 0.0005, 'min': 0.000005},
-        'warmup_steps': {'values': [4000, 5000, 6000, 7000]},
+        'lr_max': {'max': 0.001, 'min': 0.000005},
+        'warmup_steps': {'values': [2000, 3000, 4000]},
         'hidden_dim': {'values': [512, 1024, 2048]},
-        'dropout': {'values': [0.0, 0.1, 0.2]},
+        'dropout': {'values': [0.0, 0.1]},
         'num_layers': {'values': [20, 25, 30]},
         'num_components': {'values': [48, 64, 80]},
         # constants
-        'epochs': {'value': 700},
+        'epochs': {'value': 500},
         # 'dropout': {'value': 0.0},
      }
 }
