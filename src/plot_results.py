@@ -7,76 +7,58 @@ import matplotlib.pyplot as plt
 import scipy.io
 from lib.schedulers import WarmUpCosine
 
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\RawDataMagExtended(newdataset).csv"
-
-df_mag = pd.read_csv(csv_path, header=0, index_col=0)
-
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag30000.csv"
-
-df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
-
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag100000.csv"
-
-df_mag_3 = pd.read_csv(csv_path, header=0, index_col=0)
-
-# concat the two dataframes
-df_mag = pd.concat([df_mag, df_mag_2, df_mag_3], axis=0)
+csv_path = r"data/Txy_mag(all).csv"
+df_mag = pd.read_csv(csv_path)
 
 # get the headers
-headers = df_mag.columns.values.tolist()
+# headers = df_mag.columns.values.tolist()
 
-ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
+# ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
 
-f = scipy.io.loadmat(ds_path)
-df = pd.DataFrame(f['extended500000mag'])
-# drop the first column
-df = df.drop([0], axis=1)
-# rename the columns
-df.columns = headers
-# concat the two dataframes vertically
-df_mag = pd.concat([df_mag, df], axis=0)
+# f = scipy.io.loadmat(ds_path)
+# df = pd.DataFrame(f['extended500000mag'])
+# # drop the first column
+# df = df.drop([0], axis=1)
+# # rename the columns
+# df.columns = headers
+# # concat the two dataframes vertically
+# df_mag = pd.concat([df_mag, df], axis=0)
 
 df1 = df_mag
 
-param1 = df1['eps1 ']
-param2 = df1['eps2 ']
-param3 = df1['eps3 ']
-param4 = df1['eps4 ']
-param5 = df1['t1 [mm]']
-param6 = df1['t2 [mm]']
-param7 = df1['t3 [mm]']
-param8 = df1['t4 [mm]']
+# param1 = df1['eps1 ']
+# param2 = df1['eps2 ']
+# param3 = df1['eps3 ']
+# param4 = df1['eps4 ']
+# param5 = df1['t1 [mm]']
+# param6 = df1['t2 [mm]']
+# param7 = df1['t3 [mm]']
+# param8 = df1['t4 [mm]']
+# # get the columns from 9 to the end
+# values = df1.iloc[:, 8:]
+
+
+params = df_mag.iloc[:, 0:8].values
 # get the columns from 9 to the end
-values = df1.iloc[:, 8:]
-
-# convert to numpy array
-param1 = param1.values
-param2 = param2.values
-param3 = param3.values
-param4 = param4.values
-param5 = param5.values
-param6 = param6.values
-param7 = param7.values
-param8 = param8.values
-values = values.to_numpy()
-
-inuts = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
+values = df_mag.iloc[:, 8:].values
+# values = values[:, 250:]
+# inuts = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
 # standardize
-inuts_scaler = preprocessing.StandardScaler()
-inuts = inuts_scaler.fit_transform(inuts)
+params_scaler = preprocessing.StandardScaler()
+params = params_scaler.fit_transform(params)
 values_scaler = preprocessing.StandardScaler()
 values = values_scaler.fit_transform(values)
 
 # split data
-X_train, X_test, y_train, y_test = train_test_split(inuts, values, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(params, values, test_size=0.1, random_state=42)
 
 # predict
-model = tf.keras.models.load_model('../models/cp_restful-sweep-2.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
+model = tf.keras.models.load_model('models/cp_comic-sweep-29.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
 y_pred = model.predict(X_test)
 y_pred = values_scaler.inverse_transform(y_pred)
 y_test = values_scaler.inverse_transform(y_test)
 # unstandardize
-x_test = inuts_scaler.inverse_transform(X_test)
+x_test = params_scaler.inverse_transform(X_test)
 
 # calculate abs error along axis 1
 error_abs = np.abs(y_pred - y_test)
@@ -91,8 +73,8 @@ df = pd.DataFrame({'eps1': x_test[:, 0], 'eps2': x_test[:, 1], 'eps3': x_test[:,
                      'values_actual': y_test.tolist(), 'values_predicted': y_pred.tolist(),
                    'abs_error': error_abs.tolist(), 'squared_error': square_error.tolist()})
 
-df.to_csv("../data/results.csv", index=False)
-df = pd.read_csv("../data/results.csv")
+df.to_csv("data/results.csv", index=False)
+df = pd.read_csv("data/results.csv")
 
 
 for index, row in df.iterrows():

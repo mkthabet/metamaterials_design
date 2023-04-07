@@ -14,12 +14,12 @@ sweep_configuration = {
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
     {
-        'batch_size': {'values': [16, 32, 64, 128]},
+        'batch_size': {'values': [1024, 2048, 4096]},
         'lr_start': {'max': 0.0001, 'min': 0.00001},
-        'lr_max': {'max': 0.01, 'min': 0.005},
-        'warmup_steps': {'values': [100, 300, 500, 0]},
+        'lr_max': {'max': 0.01, 'min': 0.001},
+        'warmup_steps': {'values': [500, 1000, 1500]},
         'hidden_dim': {'values': [256, 512, 1024]},
-        'dropout': {'values': [0.0, 0.1, 0.2]},
+        'dropout': {'values': [0.0, 0.1, 0.2, 0.3]},
         'num_layers': {'values': [15, 20, 25]},
         # constants
         'epochs': {'value': 500},
@@ -41,12 +41,17 @@ default_config = {
 
 
 def main(run_config=None):
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\S12Dataset3(mag).csv"
+    csv_path = r"data/Txy_mag(all).csv"
     df_mag = pd.read_csv(csv_path)
+    # csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
+    # df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
+    # df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
 
     params = df_mag.iloc[:, 0:8].values
     # get the columns from 9 to the end
     mag_values = df_mag.iloc[:, 8:].values
+    # take the third quarter of the data
+    # mag_values = mag_values[:, 250:]
 
     # standardize
     param_scaler = preprocessing.StandardScaler()
@@ -56,7 +61,7 @@ def main(run_config=None):
 
     inputs = params
     # split data
-    X_train, X_test, y_train, y_test = train_test_split(inputs, mag_values, test_size=0.05, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(inputs, mag_values, test_size=0.1, random_state=42)
 
 
 
@@ -109,7 +114,7 @@ def main(run_config=None):
                                                      save_best_only=True, verbose=1)
     es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30, verbose=1)
     wandb_callback = wandb.keras.WandbCallback(monitor="val_loss",
-                                                       log_weights=True, save_model=False)
+                                                       log_weights=False, save_model=False)
     model.fit(X_train, y_train, epochs=config['epochs'], batch_size=config['batch_size'], validation_data=(X_test, y_test),
               callbacks=[cp_callback, es_callback, wandb_callback])
 
@@ -119,7 +124,8 @@ def main(run_config=None):
     y_pred = model.predict(X_test)
 
     # inverse standardize
-    y_pred = mag_scaler.inverse_transform(y_pred)    
+    y_pred = mag_scaler.inverse_transform(y_pred)
+    y_test = mag_scaler.inverse_transform(y_test)
     
     # calculate abs error along axis 1
     error_abs = np.abs(y_pred - y_test)
@@ -130,7 +136,7 @@ def main(run_config=None):
     wandb.log({'mse': mse, 'mae': mae})
 
 # Initialize sweep by passing in config. (Optional) Provide a name of the project.
-sweep_id = wandb.sweep(sweep=sweep_configuration, project='metamaterials_toy_mdn')
-wandb.agent(sweep_id, main)
-main(default_config)
+sweep_id = wandb.sweep(sweep=sweep_configuration, project='metamaterials_forward_actual_data')
+wandb.agent(sweep_id, main, count=30)
+# main(default_config)
 
