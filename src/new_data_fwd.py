@@ -41,7 +41,7 @@ default_config = {
 
 
 def main(run_config=None):
-    csv_path = r"data/Txy_mag(all).csv"
+    csv_path = r"data/Txx_mag(all).csv"
     df_mag = pd.read_csv(csv_path)
     # csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
     # df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)

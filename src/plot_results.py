@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.io
 from lib.schedulers import WarmUpCosine
 
-csv_path = r"data/Txy_mag(all).csv"
+csv_path = r"data/Txx_mag(all).csv"
 df_mag = pd.read_csv(csv_path)
 
 # get the headers
@@ -53,7 +53,7 @@ values = values_scaler.fit_transform(values)
 X_train, X_test, y_train, y_test = train_test_split(params, values, test_size=0.1, random_state=42)
 
 # predict
-model = tf.keras.models.load_model('models/cp_comic-sweep-29.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
+model = tf.keras.models.load_model('models/cp_zany-sweep-18.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
 y_pred = model.predict(X_test)
 y_pred = values_scaler.inverse_transform(y_pred)
 y_test = values_scaler.inverse_transform(y_test)
