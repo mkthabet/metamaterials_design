@@ -4,45 +4,15 @@ import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-import scipy.io
 from lib.schedulers import WarmUpCosine
 
-csv_path = r"data/Txx_mag(all).csv"
+csv_path = r"data/Tyx_mag(Final).csv"
 df_mag = pd.read_csv(csv_path)
-
-# get the headers
-# headers = df_mag.columns.values.tolist()
-
-# ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
-
-# f = scipy.io.loadmat(ds_path)
-# df = pd.DataFrame(f['extended500000mag'])
-# # drop the first column
-# df = df.drop([0], axis=1)
-# # rename the columns
-# df.columns = headers
-# # concat the two dataframes vertically
-# df_mag = pd.concat([df_mag, df], axis=0)
-
-df1 = df_mag
-
-# param1 = df1['eps1 ']
-# param2 = df1['eps2 ']
-# param3 = df1['eps3 ']
-# param4 = df1['eps4 ']
-# param5 = df1['t1 [mm]']
-# param6 = df1['t2 [mm]']
-# param7 = df1['t3 [mm]']
-# param8 = df1['t4 [mm]']
-# # get the columns from 9 to the end
-# values = df1.iloc[:, 8:]
-
 
 params = df_mag.iloc[:, 0:8].values
 # get the columns from 9 to the end
 values = df_mag.iloc[:, 8:].values
-# values = values[:, 250:]
-# inuts = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
+# values = values[:, :100]
 # standardize
 params_scaler = preprocessing.StandardScaler()
 params = params_scaler.fit_transform(params)
@@ -53,7 +23,7 @@ values = values_scaler.fit_transform(values)
 X_train, X_test, y_train, y_test = train_test_split(params, values, test_size=0.1, random_state=42)
 
 # predict
-model = tf.keras.models.load_model('models/cp_zany-sweep-18.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
+model = tf.keras.models.load_model('models/cp_hearty-sweep-29.h5', custom_objects={'WarmUpCosine': WarmUpCosine})
 y_pred = model.predict(X_test)
 y_pred = values_scaler.inverse_transform(y_pred)
 y_test = values_scaler.inverse_transform(y_test)

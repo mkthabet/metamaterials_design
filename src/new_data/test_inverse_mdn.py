@@ -11,60 +11,12 @@ from lib.losses import get_mdn_loss
 sample = False
 sample_size = 5
 
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\RawDataMagExtended(newdataset).csv"
+csv_path = r"data/Tyx_mag(Final).csv"
+df_mag = pd.read_csv(csv_path)
 
-df_mag = pd.read_csv(csv_path, header=0, index_col=0)
-
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag30000.csv"
-
-df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
-
-csv_path = r"C:\Users\mktha\Documents\projects\felix\data\mag100000.csv"
-
-df_mag_3 = pd.read_csv(csv_path, header=0, index_col=0)
-
-# concat the two dataframes
-df_mag = pd.concat([df_mag, df_mag_2, df_mag_3], axis=0)
-
-# get the headers
-headers = df_mag.columns.values.tolist()
-
-ds_path = r"C:\Users\mktha\Documents\projects\felix\data\extended500000.mat"
-
-f = scipy.io.loadmat(ds_path)
-df = pd.DataFrame(f['extended500000mag'])
-# drop the first column
-df = df.drop([0], axis=1)
-# rename the columns
-df.columns = headers
-# concat the two dataframes vertically
-df_mag = pd.concat([df_mag, df], axis=0)
-
-df1 = df_mag
-
-param1 = df1['eps1 ']
-param2 = df1['eps2 ']
-param3 = df1['eps3 ']
-param4 = df1['eps4 ']
-param5 = df1['t1 [mm]']
-param6 = df1['t2 [mm]']
-param7 = df1['t3 [mm]']
-param8 = df1['t4 [mm]']
+params = df_mag.iloc[:, 0:8].values
 # get the columns from 9 to the end
-values = df1.iloc[:, 8:]
-
-# convert to numpy array
-param1 = param1.values
-param2 = param2.values
-param3 = param3.values
-param4 = param4.values
-param5 = param5.values
-param6 = param6.values
-param7 = param7.values
-param8 = param8.values
-values = values.to_numpy()
-
-params = np.column_stack((param1, param2, param3, param4, param5, param6, param7, param8))
+values = df_mag.iloc[:, 8:].values
 
 # standardize
 params_scaler = preprocessing.StandardScaler()
@@ -74,7 +26,7 @@ values = values_scaler.fit_transform(values)
 
 # split data
 response_train, response_test, params_train, params_test = \
-    train_test_split(values, params, test_size=0.2, random_state=42)
+    train_test_split(values, params, test_size=0.1, random_state=42)
 
 
 response_dim = response_train.shape[1]
@@ -83,10 +35,10 @@ num_params = params_train.shape[1]
 output_dim = num_params
 
 # load the models
-forward_model_path = r"C:\Users\mktha\Documents\projects\felix\models\cp_restful-sweep-2.h5"
-inverse_model_path = r"C:\Users\mktha\Documents\projects\felix\models\cp_twilight-sweep-15.h5"
+forward_model_path = 'models/cp_hearty-sweep-29.h5'
+inverse_model_path = 'models/cp_sweet-sweep-2.h5'
 # predict
-num_components = 64
+num_components = 48
 forward_model = tf.keras.models.load_model(forward_model_path, custom_objects={'WarmUpCosine': WarmUpCosine})
 inverse_model = tf.keras.models.load_model(inverse_model_path, custom_objects={'mdn_loss': get_mdn_loss(output_dim, num_components),
                                                        'WarmUpCosine': WarmUpCosine})

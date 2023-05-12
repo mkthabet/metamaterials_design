@@ -1,4 +1,3 @@
-import scipy.io
 import pandas as pd
 from sklearn import preprocessing
 import numpy as np
@@ -16,13 +15,13 @@ sweep_configuration = {
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
     {
-        'batch_size': {'values': [2048, 4096, 8192]},
+        'batch_size': {'values': [256, 512, 1024, 2048]},
         'lr_start': {'max': 0.000001, 'min': 0.0000001},
         'lr_max': {'max': 0.001, 'min': 0.000005},
         'warmup_steps': {'values': [2000, 3000, 4000]},
-        'hidden_dim': {'values': [512, 1024, 2048]},
-        'dropout': {'values': [0.0, 0.1]},
-        'num_layers': {'values': [20, 25, 30]},
+        'hidden_dim': {'values': [256, 512, 1024, 2048]},
+        'dropout': {'values': [0.0, 0.1, 0.2]},
+        'num_layers': {'values': [15, 20, 25, 30]},
         'num_components': {'values': [32, 48, 64]},
         # constants
         'epochs': {'value': 500},
@@ -45,11 +44,8 @@ default_config = {
 
 
 def train_MDN(run_config=None):
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended300000mag.csv"
-    df_mag_1 = pd.read_csv(csv_path, header=0, index_col=0)
-    csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
-    df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
-    df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
+    csv_path = r"data/Tyx_mag(Final).csv"
+    df_mag = pd.read_csv(csv_path)
 
     
     params = df_mag.iloc[:, 0:8].values
@@ -65,7 +61,7 @@ def train_MDN(run_config=None):
 
     # split data
     X_train, X_test, y_train, y_test = train_test_split(mag_values, params,
-                                                        test_size=0.2, random_state=42)
+                                                        test_size=0.1, random_state=42)
     wandb.init()
     # get run name
     run_name = wandb.run.name
@@ -110,12 +106,12 @@ def train_MDN(run_config=None):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=f'../models/cp_{run_name}.h5', monitor='val_loss',
                                                      save_best_only=True, verbose=1)
     es_callback = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=30, verbose=1)
-    lr_logger_callback = LRLogger(optimizer=optimizer)
+    # lr_logger_callback = LRLogger(optimizer=optimizer)
     wandb_callback = wandb.keras.WandbCallback(monitor="val_loss",
-                                               log_weights=True, save_model=False)
+                                               log_weights=False, save_model=False)
     model.fit(X_train, y_train, epochs=run_config['epochs'], batch_size=run_config['batch_size'],
               validation_data=(X_test, y_test),
-              callbacks=[lr_callback, cp_callback, es_callback, wandb_callback, lr_logger_callback])
+              callbacks=[cp_callback, es_callback, wandb_callback])
 
     # model = tf.keras.models.load_model(f'../models/cp_{run_name}.h5',
     #                                    custom_objects={'mdn_loss': get_mdn_loss(output_dim, num_components),
@@ -158,7 +154,7 @@ def train_MDN(run_config=None):
     # wandb.log({'MAE': params_mae.mean(), 'MSE': params_mse.mean(), 'Percentage Error': params_percentage_error.mean()})
 
 if __name__ == '__main__':
-    sweep_id = wandb.sweep(sweep=sweep_configuration, project='felix_inverse_mdn_new')
-    wandb.agent('4ghlg733', train_MDN, project='felix_inverse_mdn_new')
+    sweep_id = wandb.sweep(sweep=sweep_configuration, project='felix_inverse_mdn_new_final')
+    wandb.agent(sweep_id, train_MDN, project='felix_inverse_mdn_new_final')
     # train_MDN(default_config)
 

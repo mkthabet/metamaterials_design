@@ -14,13 +14,13 @@ sweep_configuration = {
     'metric': {'goal': 'minimize', 'name': 'val_loss'},
     'parameters':
     {
-        'batch_size': {'values': [1024, 2048, 4096]},
+        'batch_size': {'values': [256, 512, 1024, 2048]},
         'lr_start': {'max': 0.0001, 'min': 0.00001},
         'lr_max': {'max': 0.01, 'min': 0.001},
-        'warmup_steps': {'values': [500, 1000, 1500]},
-        'hidden_dim': {'values': [256, 512, 1024]},
-        'dropout': {'values': [0.0, 0.1, 0.2, 0.3]},
-        'num_layers': {'values': [15, 20, 25]},
+        'warmup_steps': {'values': [100, 500, 1000, 1500]},
+        'hidden_dim': {'values': [128, 256, 512, 1024]},
+        'dropout': {'values': [0.0, 0.1, 0.2, 0.3, 0.4, 0.5]},
+        'num_layers': {'values': [5, 10, 15, 20, 25]},
         # constants
         'epochs': {'value': 500},
         # 'dropout': {'value': 0.0},
@@ -41,18 +41,13 @@ default_config = {
 
 
 def main(run_config=None):
-    csv_path = r"data/Txx_mag(all).csv"
+    csv_path = r"data/Tyx_mag(Final).csv"
     df_mag = pd.read_csv(csv_path)
-    # csv_path = r"C:\Users\mktha\Documents\projects\felix\data\extended350000mag.csv"
-    # df_mag_2 = pd.read_csv(csv_path, header=0, index_col=0)
-    # df_mag = pd.concat([df_mag_1, df_mag_2], axis=0)
 
     params = df_mag.iloc[:, 0:8].values
     # get the columns from 9 to the end
     mag_values = df_mag.iloc[:, 8:].values
-    # take the third quarter of the data
-    # mag_values = mag_values[:, 250:]
-
+    mag_values = mag_values[:, :100]
     # standardize
     param_scaler = preprocessing.StandardScaler()
     params = param_scaler.fit_transform(params)
@@ -62,7 +57,10 @@ def main(run_config=None):
     inputs = params
     # split data
     X_train, X_test, y_train, y_test = train_test_split(inputs, mag_values, test_size=0.1, random_state=42)
-
+    print(f"X_train shape: {X_train.shape}")
+    print(f"y_train shape: {y_train.shape}")
+    print(f"X_test shape: {X_test.shape}")
+    print(f"y_test shape: {y_test.shape}")
 
 
 

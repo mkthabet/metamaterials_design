@@ -1,0 +1,15 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+data
+.vscode
+.idea
+plots
+*.csv
+wandb
+src/wandb
+src/__pycache__
+models
+src/lib/__pycache__
+*.png
